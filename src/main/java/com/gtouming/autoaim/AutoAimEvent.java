@@ -2,6 +2,7 @@ package com.gtouming.autoaim;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -40,7 +41,10 @@ public class AutoAimEvent {
         // 确保玩家存在且在游戏中
         if (player == null || !player.isAlive()) return;
 
-        // 查找并瞄准最近的实体
+        // 检查是否需要检查手中物品
+        if (Config.checkHeldItem && !Config.enabledItems.contains(player.getMainHandItem().getItem())) return;
+
+        // 查找最近的实体
         Entity target = findNearestTarget(player);
 
         if (target == null) return;
@@ -50,6 +54,75 @@ public class AutoAimEvent {
 
         // 自动攻击目标
         attackTarget(mc, player, target);
+    }
+
+    /**
+     * 检查实体是否是目标实体，包括实体变种
+     *
+     * @param entity 要检查的实体
+     * @return 如果实体是目标实体返回true，否则返回false
+     */
+    private static boolean isTargetEntity(Entity entity) {
+//
+//        // 获取实体的资源ID
+//        String entityId = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).toString();
+
+        // 检查实体变种
+        for (String variant : Config.entityVariants) {
+            if (!variant.contains("@")) continue;
+            String variantKey = variant.substring(variant.lastIndexOf("@") + 1);
+            if (isEntityVariant(entity, variantKey)) {
+                System.out.println("实体 " + entity.getClass().getName() + " 是 " + variantKey + " 变种");
+                return true;
+            }
+//            try {
+//                // 获取方法，假设是无参方法且返回布尔值
+//                Method method = entity.getClass().getMethod(variantKey);
+//                // 调用方法并获取返回值
+//                Object result = method.invoke(entity);
+//                // 如果方法返回布尔值
+//                if (result instanceof Boolean b) {
+//                    return b;
+//                }
+//            } catch (NoSuchMethodException e) {
+//                System.err.println("实体 " + entity.getClass().getName() + " 没有" + variantKey + "变种");
+//            } catch (IllegalAccessException e) {
+//                System.err.println("无法访问: " + variantKey);
+//            } catch (InvocationTargetException e) {
+//                System.err.println("查找变种 " + variantKey + " 时出错: " + e.getCause().getMessage());
+//            }
+        }
+        // 检查实体类型是否在目标列表中
+        return Config.targetEntities.contains(entity.getType());
+    }
+
+    /**
+     * 检查实体是否具有指定的变种属性
+     * 支持常见的变种属性，如 IsBaby, IsPowered 等
+     *
+     * @param entity 要检查的实体
+     * @param variantKey 变种属性键（如 "baby", "powered"）
+     * @return 如果实体具有该变种属性返回true，否则返回false
+     */
+    private static boolean isEntityVariant(Entity entity, String variantKey) {
+        // 尝试通过实体数据标签获取变种属性
+        try {
+            CompoundTag entityData = new CompoundTag();
+            entity.save(entityData);
+
+            if (entityData.contains(variantKey)) {
+                return entityData.getBoolean(variantKey);
+            }
+            
+            // 检查小写形式的标签
+            if (entityData.contains(variantKey.toLowerCase())) {
+                return entityData.getBoolean(variantKey.toLowerCase());
+            }
+        } catch (Exception e) {
+            return false;
+        }
+        
+        return false;
     }
 
     /**
@@ -85,13 +158,11 @@ public class AutoAimEvent {
             }
 
             // 检查实体是否在目标列表中
-            return Config.targetEntities.contains(entity.getType());
+            return isTargetEntity(entity);
         });
 
         // 如果没有找到符合条件的实体，返回null
-        if (entities.isEmpty()) {
-            return null;
-        }
+        if (entities.isEmpty()) return null;
 
         // 找到距离最近的实体
         return entities.stream()
@@ -132,18 +203,14 @@ public class AutoAimEvent {
      */
     private static void attackTarget(Minecraft mc, LocalPlayer player, Entity target) {
         // 确保目标是一个活体实体
-        if (!(target instanceof LivingEntity livingTarget)) {
-            return;
-        }
+        if (!(target instanceof LivingEntity livingTarget)) return;
 
         // 检查玩家是否可以攻击（冷却时间等）
-        if (!player.canAttack(livingTarget)) {
-            return;
-        }
+        if (!player.canAttack(livingTarget)) return;
 
         // 执行攻击
-        if (mc.gameMode != null) {
-            mc.gameMode.attack(player, livingTarget);
-        }
+        if (mc.gameMode == null) return;
+
+        mc.gameMode.attack(player, livingTarget);
     }
 }
