@@ -1,31 +1,27 @@
 package com.gtouming.autoaim;
 
-import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.InputEvent;
-import org.slf4j.Logger;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * 自动瞄准处理器
  * 监听玩家单击攻击事件，自动瞄准配置中的实体并攻击
  */
 @EventBusSubscriber(modid = Autoaim.MODID, value = Dist.CLIENT)
-public class AutoAimHandler {
-    private static final Logger LOGGER = LogUtils.getLogger();
-
-    // 是否正在瞄准
-    private static boolean isAiming = false;
+public class AutoAimEvent {
 
     /**
      * 监听鼠标点击事件，检测单击攻击
@@ -33,39 +29,27 @@ public class AutoAimHandler {
     @SubscribeEvent
     public static void onMouseButton(InputEvent.MouseButton.Pre event) {
         // 检查是否启用自动瞄准
-        if (!Config.enableAutoAim) {
-            return;
-        }
+        if (!Config.enableAutoAim) return;
 
         // 检查是否是左键点击 (button 0)
-        if (event.getAction() != 1 || event.getButton() != 0) {
-            return;
-        }
+        if (event.getAction() != 1 || event.getButton() != 0) return;
 
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
 
         // 确保玩家存在且在游戏中
-        if (player == null || !player.isAlive()) {
-            return;
-        }
-
-        LOGGER.debug("检测到单击攻击，开始自动瞄准");
+        if (player == null || !player.isAlive()) return;
 
         // 查找并瞄准最近的实体
         Entity target = findNearestTarget(player);
 
-        if (target != null) {
-            // 瞄准实体
-            aimAtEntity(player, target);
-            isAiming = true;
-            LOGGER.debug("已瞄准实体: {}", target.getType().getDescription());
+        if (target == null) return;
 
-            // 自动攻击目标
-            attackTarget(mc, player, target);
-        } else {
-            LOGGER.debug("未找到符合条件的实体");
-        }
+        // 瞄准实体
+        aimAtEntity(player, target);
+
+        // 自动攻击目标
+        attackTarget(mc, player, target);
     }
 
     /**
@@ -76,7 +60,7 @@ public class AutoAimHandler {
      */
     private static Entity findNearestTarget(LocalPlayer player) {
         Vec3 playerPos = player.position();
-        double searchDistance = Config.searchDistance;
+        double searchDistance = Objects.requireNonNull(player.getAttribute(Attributes.ENTITY_INTERACTION_RANGE)).getValue();
 
         // 创建搜索范围
         AABB searchBox = new AABB(
@@ -123,11 +107,7 @@ public class AutoAimHandler {
      */
     private static void aimAtEntity(LocalPlayer player, Entity target) {
         Vec3 playerEyePos = player.getEyePosition(1.0F);
-        Vec3 targetPos = new Vec3(
-            target.getX(),
-            target.getY() + target.getEyeHeight() * 0.5, // 瞄准实体中心偏上位置
-            target.getZ()
-        );
+        Vec3 targetPos = target.getEyePosition();
 
         // 计算从玩家到目标的方向向量
         Vec3 direction = targetPos.subtract(playerEyePos).normalize();
@@ -152,20 +132,18 @@ public class AutoAimHandler {
      */
     private static void attackTarget(Minecraft mc, LocalPlayer player, Entity target) {
         // 确保目标是一个活体实体
-        if (!(target instanceof LivingEntity)) {
+        if (!(target instanceof LivingEntity livingTarget)) {
             return;
         }
 
-        LivingEntity livingTarget = (LivingEntity) target;
-
         // 检查玩家是否可以攻击（冷却时间等）
         if (!player.canAttack(livingTarget)) {
-            LOGGER.debug("无法攻击目标: {}", target.getType().getDescription());
             return;
         }
 
         // 执行攻击
-        mc.gameMode.attack(player, livingTarget);
-        LOGGER.debug("已攻击实体: {}", target.getType().getDescription());
+        if (mc.gameMode != null) {
+            mc.gameMode.attack(player, livingTarget);
+        }
     }
 }
