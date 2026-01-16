@@ -36,7 +36,7 @@ public class Config {
     private static final ModConfigSpec.ConfigValue<List<? extends String>> TARGET_ENTITIES = BUILDER
             .comment("目标实体列表，支持格式: modid:entity_type, modid:entity_type@variant (实体变种，如minecraft:zombie@isBaby), modid:* (通配符), #tag (实体标签)")
             .define("autoaim.targetEntities",
-                    List.of("minecraft:zombie@isBaby", "minecraft:vex"),
+                    List.of("minecraft:zombie@isBaby", "minecraft:vex", "minecraft:phantom", "minecraft:silverfish", "minecraft:endermite"),
                     Config::verifyList);
 
     private static final ModConfigSpec.ConfigValue<List<? extends String>> ENABLED_ITEMS = BUILDER
@@ -51,9 +51,9 @@ public class Config {
     // AutoAim 配置字段
     public static boolean enableAutoAim;
     public static boolean checkHeldItem;
-    public static Set<EntityType<?>> targetEntities;
-    public static Set<String> entityVariants;
-    public static Set<Item> enabledItems;
+    public static Set<EntityType<?>> targetEntities = new HashSet<>();
+    public static Set<String> entityVariants = new HashSet<>();
+    public static Set<Item> enabledItems = new HashSet<>();
 
     /**
      * 解析实体模式字符串，返回匹配的实体类型集合
@@ -81,12 +81,13 @@ public class Config {
         }
         String[] parts = pattern.split("@");
         // 处理通配符和精确匹配
-        ResourceLocation entityId = ResourceLocation.parse(parts[0]);
-        if (entityId.getPath().equals("*")) {
+        String[] parts2 = parts[0].split(":");
+        if (parts2[1].equals("*")) {
             return BuiltInRegistries.ENTITY_TYPE.stream()
-                    .filter(type -> BuiltInRegistries.ENTITY_TYPE.getKey(type).getNamespace().equals(entityId.getNamespace()))
+                    .filter(type -> BuiltInRegistries.ENTITY_TYPE.getKey(type).getNamespace().equals(parts2[0]))
                     .collect(Collectors.toSet());
         } else {
+            ResourceLocation entityId = ResourceLocation.parse(parts[0]);
             EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(entityId);
             return Set.of(type);
         }
@@ -113,13 +114,14 @@ public class Config {
         }
 
         // 处理通配符和精确匹配
-        ResourceLocation itemId = ResourceLocation.parse(pattern);
-        if (itemId.getPath().equals("*")) {
+        String[] parts = pattern.split(":");
+        if (parts[1].equals("*")) {
             // 通配符匹配：匹配指定模组的所有物品
             return BuiltInRegistries.ITEM.stream()
-                    .filter(item -> BuiltInRegistries.ITEM.getKey(item).getNamespace().equals(itemId.getNamespace()))
+                    .filter(item -> BuiltInRegistries.ITEM.getKey(item).getNamespace().equals(parts[0]))
                     .collect(Collectors.toSet());
         } else {
+            ResourceLocation itemId = ResourceLocation.parse(pattern);
             // 精确匹配
             Item item = BuiltInRegistries.ITEM.get(itemId);
             return Set.of(item);
@@ -133,22 +135,8 @@ public class Config {
         }
         return true;
     }
-
-    @SubscribeEvent
-    static void onLoad(final ModConfigEvent event) {
-        // 加载自动瞄准配置
-        enableAutoAim = ENABLE_AUTOAIM.get();
-        checkHeldItem = CHECK_HELD_ITEM.get();
-
-        targetEntities = new HashSet<>();
-        entityVariants = new HashSet<>();
-        enabledItems = new HashSet<>();
-    }
-
-    @SubscribeEvent
-    static void onConfigReload(LevelEvent.Load event) {
-
-        // 解析目标实体
+    
+    private static void initList() {
         targetEntities = TARGET_ENTITIES.get().stream()
                 .flatMap(entityPattern -> {
                     // 检查是否是实体变种模式
@@ -161,9 +149,21 @@ public class Config {
                 })
                 .collect(Collectors.toSet());
 
-        // 在世界加载时解析物品标签，确保物品标签已注册
         enabledItems = ENABLED_ITEMS.get().stream()
                 .flatMap(itemPattern -> resolveItemPattern(itemPattern).stream())
                 .collect(Collectors.toSet());
+    }
+
+    @SubscribeEvent
+    static void onLoad(final ModConfigEvent event) {
+        // 加载自动瞄准配置
+        enableAutoAim = ENABLE_AUTOAIM.get();
+        checkHeldItem = CHECK_HELD_ITEM.get();
+        initList();
+    }
+
+    @SubscribeEvent
+    static void onConfigReload(LevelEvent.Load event) {
+        initList();
     }
 }
