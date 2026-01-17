@@ -20,35 +20,36 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-@EventBusSubscriber(modid = Autoaim.MODID)
+@EventBusSubscriber(modid = Autoaim.MOD_ID)
 public class Config {
     private static final ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
-    // AutoAim 配置
 
     private static final ModConfigSpec.BooleanValue ENABLE_AUTOAIM = BUILDER
             .comment("是否开启自瞄")
+            .comment("enable auto aim")
             .define("autoaim.enabled", true);
 
     private static final ModConfigSpec.BooleanValue CHECK_HELD_ITEM = BUILDER
             .comment("是否检查手中物品以决定是否尝试自瞄")
+            .comment("check held item to decide whether to enable auto aim")
             .define("autoaim.checkHeldItem", true);
     
     private static final ModConfigSpec.ConfigValue<List<? extends String>> TARGET_ENTITIES = BUILDER
-            .comment("目标实体列表，支持格式: modid:entity_type, modid:entity_type@variant (实体变种，如minecraft:zombie@isBaby), modid:* (通配符), #tag (实体标签)")
+            .comment("目标实体列表，支持格式: modid:entity_type, modid:entity_type@variant (实体变种（可通过数据标签查看），如minecraft:zombie@IsBaby), modid:* (通配符), #tag (实体标签)")
+            .comment("target entities list, support format: modid:entity_type, modid:entity_type@variant (entity variant(from data tag), such as minecraft:zombie@IsBaby), modid:* (wildcard), #tag (entity tag)")
             .define("autoaim.targetEntities",
-                    List.of("minecraft:zombie@isBaby", "minecraft:vex", "minecraft:phantom", "minecraft:silverfish", "minecraft:endermite"),
+                    List.of("minecraft:zombie@IsBaby", "minecraft:vex", "minecraft:phantom", "minecraft:silverfish", "minecraft:endermite"),
                     Config::verifyList);
 
     private static final ModConfigSpec.ConfigValue<List<? extends String>> ENABLED_ITEMS = BUILDER
             .comment("启用自瞄的物品列表，支持格式: modid:item, modid:* (通配符), #tag (物品标签)")
+            .comment("enabled items list, support format: modid:item, modid:* (wildcard), #tag (item tag)")
             .define("autoaim.enabledItems",
                     List.of("#swords"),
                     Config::verifyList);
 
     static final ModConfigSpec SPEC = BUILDER.build();
 
-
-    // AutoAim 配置字段
     public static boolean enableAutoAim;
     public static boolean checkHeldItem;
     public static Set<EntityType<?>> targetEntities = new HashSet<>();
@@ -79,14 +80,16 @@ public class Config {
                     })
                     .orElse(new HashSet<>());
         }
+
         String[] parts = pattern.split("@");
-        // 处理通配符和精确匹配
         String[] parts2 = parts[0].split(":");
         if (parts2[1].equals("*")) {
+            // 通配符匹配：匹配指定模组的所有实体
             return BuiltInRegistries.ENTITY_TYPE.stream()
                     .filter(type -> BuiltInRegistries.ENTITY_TYPE.getKey(type).getNamespace().equals(parts2[0]))
                     .collect(Collectors.toSet());
         } else {
+            // 精确匹配
             ResourceLocation entityId = ResourceLocation.parse(parts[0]);
             EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(entityId);
             return Set.of(type);
@@ -104,7 +107,6 @@ public class Config {
      * @return 匹配的物品集合
      */
     private static Set<Item> resolveItemPattern(String pattern) {
-        // 处理物品标签
         if (pattern.startsWith("#")) {
             ResourceLocation tagId = ResourceLocation.parse(pattern.substring(1));
             TagKey<Item> tagKey = TagKey.create(Registries.ITEM, tagId);
@@ -113,7 +115,6 @@ public class Config {
                     .orElse(Collections.emptySet());
         }
 
-        // 处理通配符和精确匹配
         String[] parts = pattern.split(":");
         if (parts[1].equals("*")) {
             // 通配符匹配：匹配指定模组的所有物品
@@ -141,7 +142,6 @@ public class Config {
                 .flatMap(entityPattern -> {
                     // 检查是否是实体变种模式
                     if (entityPattern.contains("@")) {
-                        // 这是实体变种模式，添加到变种集合中
                         entityVariants.add(entityPattern);
                         return Stream.empty();
                     }
@@ -156,14 +156,15 @@ public class Config {
 
     @SubscribeEvent
     static void onLoad(final ModConfigEvent event) {
-        // 加载自动瞄准配置
         enableAutoAim = ENABLE_AUTOAIM.get();
         checkHeldItem = CHECK_HELD_ITEM.get();
+        // 初始化列表（此时标签未注册）
         initList();
     }
 
     @SubscribeEvent
-    static void onConfigReload(LevelEvent.Load event) {
+    static void onLevelLoad(LevelEvent.Load event) {
+        //再次初始化（此时标签已注册）
         initList();
     }
 }

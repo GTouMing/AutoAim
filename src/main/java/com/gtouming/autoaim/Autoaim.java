@@ -8,9 +8,9 @@ import net.neoforged.fml.config.ModConfig;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
 
-@Mod(Autoaim.MODID)
+@Mod(Autoaim.MOD_ID)
 public class Autoaim {
-    public static final String MODID = "autoaim";
+    public static final String MOD_ID = "autoaim";
     public Autoaim(IEventBus modEventBus, ModContainer modContainer) {
         NeoForge.EVENT_BUS.register(this);
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC);

@@ -21,7 +21,7 @@ import java.util.Objects;
  * 自动瞄准处理器
  * 监听玩家单击攻击事件，自动瞄准配置中的实体并攻击
  */
-@EventBusSubscriber(modid = Autoaim.MODID, value = Dist.CLIENT)
+@EventBusSubscriber(modid = Autoaim.MOD_ID, value = Dist.CLIENT)
 public class AutoAimEvent {
 
     /**
@@ -63,34 +63,12 @@ public class AutoAimEvent {
      * @return 如果实体是目标实体返回true，否则返回false
      */
     private static boolean isTargetEntity(Entity entity) {
-//
-//        // 获取实体的资源ID
-//        String entityId = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).toString();
-
-        // 检查实体变种
         for (String variant : Config.entityVariants) {
             if (!variant.contains("@")) continue;
             String variantKey = variant.substring(variant.lastIndexOf("@") + 1);
             if (isEntityVariant(entity, variantKey)) {
-                System.out.println("实体 " + entity.getClass().getName() + " 是 " + variantKey + " 变种");
                 return true;
             }
-//            try {
-//                // 获取方法，假设是无参方法且返回布尔值
-//                Method method = entity.getClass().getMethod(variantKey);
-//                // 调用方法并获取返回值
-//                Object result = method.invoke(entity);
-//                // 如果方法返回布尔值
-//                if (result instanceof Boolean b) {
-//                    return b;
-//                }
-//            } catch (NoSuchMethodException e) {
-//                System.err.println("实体 " + entity.getClass().getName() + " 没有" + variantKey + "变种");
-//            } catch (IllegalAccessException e) {
-//                System.err.println("无法访问: " + variantKey);
-//            } catch (InvocationTargetException e) {
-//                System.err.println("查找变种 " + variantKey + " 时出错: " + e.getCause().getMessage());
-//            }
         }
         // 检查实体类型是否在目标列表中
         return Config.targetEntities.contains(entity.getType());
