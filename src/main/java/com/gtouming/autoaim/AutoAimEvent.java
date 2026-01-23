@@ -6,7 +6,9 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -49,6 +51,7 @@ public class AutoAimEvent {
 
         if (target == null) return;
 
+        if (hitOther(player, target)) return;
         // 瞄准实体
         aimAtEntity(player, target);
 
@@ -170,6 +173,47 @@ public class AutoAimEvent {
         player.setXRot(pitch);
         player.yRotO = yaw;
         player.xRotO = pitch;
+    }
+
+    /**
+     * 检查是否击中其他
+     *
+     * @param player 玩家
+     * @param target 目标实体
+     * @return 如果没有则返回true，否则返回false
+     */
+    private static boolean hitOther(LocalPlayer player, Entity target) {
+        Vec3 playerEyePos = player.getEyePosition(1.0F);
+        Vec3 targetPos = target.getEyePosition();
+        // 执行射线检测，检查玩家到目标的向量方向上是否击中方块或其他实体
+        HitResult result = player.level().clip(
+            new ClipContext(
+                    playerEyePos,
+                    targetPos,
+                    ClipContext.Block.COLLIDER,
+                    ClipContext.Fluid.NONE,
+                    player
+            )
+        );
+        if (result.getType() == HitResult.Type.BLOCK) return true;
+        // 创建射线检测的AABB
+        AABB rayBox = new AABB(playerEyePos, targetPos).inflate(0.5);
+
+        // 获取射线路径上的所有实体
+        List<Entity> entitiesInPath = player.level().getEntities(player, rayBox, entity ->
+                entity != target && entity instanceof LivingEntity
+        );
+
+        // 检查每个实体是否在射线路径上
+        for (Entity entity : entitiesInPath) {
+            AABB entityBox = entity.getBoundingBox();
+            // 检查射线是否与实体碰撞
+            if (entityBox.clip(playerEyePos, targetPos).isPresent()) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

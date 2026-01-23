@@ -13,10 +13,7 @@ import net.neoforged.fml.event.config.ModConfigEvent;
 import net.neoforged.neoforge.common.ModConfigSpec;
 import net.neoforged.neoforge.event.level.LevelEvent;
 
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -50,6 +47,9 @@ public class Config {
 
     static final ModConfigSpec SPEC = BUILDER.build();
 
+    static List<String> rawTargetEntities;
+    static List<String> rawEnabledItems;
+
     public static boolean enableAutoAim;
     public static boolean checkHeldItem;
     public static Set<EntityType<?>> targetEntities = new HashSet<>();
@@ -67,18 +67,18 @@ public class Config {
      * @param pattern 实体模式字符串
      * @return 匹配的实体类型集合
      */
-    private static Set<EntityType<?>> resolveEntityPattern(String pattern) {
+    static List<EntityType<?>> resolveEntityPattern(String pattern) {
         // 处理实体标签
         if (pattern.startsWith("#")) {
             ResourceLocation tagId = ResourceLocation.parse(pattern.substring(1));
             TagKey<EntityType<?>> tagKey = TagKey.create(Registries.ENTITY_TYPE, tagId);
             return BuiltInRegistries.ENTITY_TYPE.getTag(tagKey)
                     .map(tag -> {
-                        Set<EntityType<?>> result = new HashSet<>();
+                        List<EntityType<?>> result = new ArrayList<>();
                         tag.forEach(holder -> result.add(holder.value()));
                         return result;
                     })
-                    .orElse(new HashSet<>());
+                    .orElse(new ArrayList<>());
         }
 
         String[] parts = pattern.split("@");
@@ -87,12 +87,13 @@ public class Config {
             // 通配符匹配：匹配指定模组的所有实体
             return BuiltInRegistries.ENTITY_TYPE.stream()
                     .filter(type -> BuiltInRegistries.ENTITY_TYPE.getKey(type).getNamespace().equals(parts2[0]))
-                    .collect(Collectors.toSet());
+                    .collect(Collectors.toList());
         } else {
             // 精确匹配
             ResourceLocation entityId = ResourceLocation.parse(parts[0]);
             EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(entityId);
-            return Set.of(type);
+            //不存在则返回猪（神秘）
+            return List.of(type);
         }
     }
 
@@ -106,13 +107,13 @@ public class Config {
      * @param pattern 物品模式字符串
      * @return 匹配的物品集合
      */
-    private static Set<Item> resolveItemPattern(String pattern) {
+    static List<Item> resolveItemPattern(String pattern) {
         if (pattern.startsWith("#")) {
             ResourceLocation tagId = ResourceLocation.parse(pattern.substring(1));
             TagKey<Item> tagKey = TagKey.create(Registries.ITEM, tagId);
             return BuiltInRegistries.ITEM.getTag(tagKey)
-                    .map(tag -> tag.stream().map(Holder::value).collect(Collectors.toSet()))
-                    .orElse(Collections.emptySet());
+                    .map(tag -> tag.stream().map(Holder::value).collect(Collectors.toList()))
+                    .orElse(Collections.emptyList());
         }
 
         String[] parts = pattern.split(":");
@@ -120,12 +121,13 @@ public class Config {
             // 通配符匹配：匹配指定模组的所有物品
             return BuiltInRegistries.ITEM.stream()
                     .filter(item -> BuiltInRegistries.ITEM.getKey(item).getNamespace().equals(parts[0]))
-                    .collect(Collectors.toSet());
+                    .collect(Collectors.toList());
         } else {
             ResourceLocation itemId = ResourceLocation.parse(pattern);
             // 精确匹配
             Item item = BuiltInRegistries.ITEM.get(itemId);
-            return Set.of(item);
+            //不存在则返回空气
+            return List.of(item);
         }
     }
 
@@ -137,7 +139,8 @@ public class Config {
         return true;
     }
     
-    private static void initList() {
+    static void initList() {
+        entityVariants.clear();
         targetEntities = TARGET_ENTITIES.get().stream()
                 .flatMap(entityPattern -> {
                     // 检查是否是实体变种模式
@@ -152,10 +155,23 @@ public class Config {
         enabledItems = ENABLED_ITEMS.get().stream()
                 .flatMap(itemPattern -> resolveItemPattern(itemPattern).stream())
                 .collect(Collectors.toSet());
+        rawTargetEntities = TARGET_ENTITIES.get().stream()
+                .collect(Collectors.toList());
+        rawEnabledItems = ENABLED_ITEMS.get().stream()
+                .collect(Collectors.toList());
+    }
+
+    static void saveConfig() {
+        // 卸载配置时，将列表保存到配置文件
+        ENABLE_AUTOAIM.set(enableAutoAim);
+        CHECK_HELD_ITEM.set(checkHeldItem);
+
+        TARGET_ENTITIES.set(rawTargetEntities);
+        ENABLED_ITEMS.set(rawEnabledItems);
     }
 
     @SubscribeEvent
-    static void onLoad(final ModConfigEvent event) {
+    static void onLoad(final ModConfigEvent.Loading event) {
         enableAutoAim = ENABLE_AUTOAIM.get();
         checkHeldItem = CHECK_HELD_ITEM.get();
         // 初始化列表（此时标签未注册）
@@ -166,5 +182,16 @@ public class Config {
     static void onLevelLoad(LevelEvent.Load event) {
         //再次初始化（此时标签已注册）
         initList();
+    }
+
+    @SubscribeEvent
+    static void onReload(final ModConfigEvent.Reloading event) {
+        saveConfig();
+        initList();
+    }
+
+    @SubscribeEvent
+    static void onUnload(final ModConfigEvent.Unloading event) {
+        saveConfig();
     }
 }

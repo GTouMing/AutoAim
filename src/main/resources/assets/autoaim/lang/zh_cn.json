@@ -1,0 +1,18 @@
+{
+  "autoaim.command.item.added": "§a已添加物品 §e%s",
+  "autoaim.command.item.removed": "§c从列表中移除物品 §e%s",
+  "autoaim.command.item.status": "§6物品检查状态: §f%s",
+  "autoaim.command.item.enabled": "§a已启用",
+  "autoaim.command.item.disabled": "§c已禁用",
+  "autoaim.command.item.title": "§b=== §6启用自瞄的物品配置 §b===",
+  "autoaim.command.item.types": "§e物品类型:",
+
+  "autoaim.command.entity.added": "§a已添加实体 §e%s",
+  "autoaim.command.entity.removed": "§c从列表中移除实体 §e%s",
+  "autoaim.command.entity.status": "§6自瞄状态: §f%s",
+  "autoaim.command.entity.enabled": "§a已启用",
+  "autoaim.command.entity.disabled": "§c已禁用",
+  "autoaim.command.entity.title": "§b=== §6自瞄目标实体配置 §b===",
+  "autoaim.command.entity.types": "§e实体类型:",
+  "autoaim.command.entity.variants": "§e实体变种:"
+}

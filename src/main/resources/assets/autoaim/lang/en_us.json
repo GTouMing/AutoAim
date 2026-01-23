@@ -1,1 +1,18 @@
-{}
+{
+  "autoaim.command.item.added": "§aAdded item §e%s",
+  "autoaim.command.item.removed": "§cRemoved item §e%s from list",
+  "autoaim.command.item.status": "§6Item check status: §f%s",
+  "autoaim.command.item.enabled": "§aenabled",
+  "autoaim.command.item.disabled": "§cdisabled",
+  "autoaim.command.item.title": "§b=== §6Auto aim enabled items config §b===",
+  "autoaim.command.item.types": "§eItem types:",
+
+  "autoaim.command.entity.added": "§aAdded entity §e%s",
+  "autoaim.command.entity.removed": "§cRemoved entity §e%s from list",
+  "autoaim.command.entity.status": "§6Auto aim status: §f%s",
+  "autoaim.command.entity.enabled": "§aenabled",
+  "autoaim.command.entity.disabled": "§cdisabled",
+  "autoaim.command.entity.title": "§b=== §6Auto aim target entities config §b===",
+  "autoaim.command.entity.types": "§eEntity types:",
+  "autoaim.command.entity.variants": "§eEntity variants:"
+}
