@@ -185,6 +185,7 @@ public class AutoAimEvent {
     private static boolean hitOther(LocalPlayer player, Entity target) {
         Vec3 playerEyePos = player.getEyePosition(1.0F);
         Vec3 targetPos = target.getEyePosition();
+        Vec3 otherPos = playerEyePos.add(player.getLookAngle().scale(Objects.requireNonNull(player.getAttribute(Attributes.ENTITY_INTERACTION_RANGE)).getValue()));
         // 执行射线检测，检查玩家到目标的向量方向上是否击中方块或其他实体
         HitResult result = player.level().clip(
             new ClipContext(
@@ -197,7 +198,7 @@ public class AutoAimEvent {
         );
         if (result.getType() == HitResult.Type.BLOCK) return true;
         // 创建射线检测的AABB
-        AABB rayBox = new AABB(playerEyePos, targetPos).inflate(0.5);
+        AABB rayBox = new AABB(playerEyePos, otherPos);
 
         // 获取射线路径上的所有实体
         List<Entity> entitiesInPath = player.level().getEntities(player, rayBox, entity ->
@@ -208,7 +209,7 @@ public class AutoAimEvent {
         for (Entity entity : entitiesInPath) {
             AABB entityBox = entity.getBoundingBox();
             // 检查射线是否与实体碰撞
-            if (entityBox.clip(playerEyePos, targetPos).isPresent()) {
+            if (entityBox.clip(playerEyePos, otherPos).isPresent()) {
                 return true;
             }
         }
